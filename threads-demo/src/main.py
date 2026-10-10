@@ -4,6 +4,7 @@ uma          consulta 1 CEP
 sequencial   uma por vez
 threads      ThreadPoolExecutor
 comparar     sequencial, threads e speedup medido
+comparar_cep roda o comparar do CEP nos dois builds (.venv e .venv-ft) lado a lado
 benchmark    1, 2, 5, 10 e 20 workers
 cpu          checksum pesado (SHA-256): sequencial vs threads vs processos (GIL)
 """
@@ -11,8 +12,10 @@ cpu          checksum pesado (SHA-256): sequencial vs threads vs processos (GIL)
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 import time
+from pathlib import Path
 
 from benchmark import run_benchmark
 from cpu_bound import DEFAULT_UPTO, DEFAULT_WORKERS as DEFAULT_CPU_WORKERS, run_cpu_compare
@@ -61,6 +64,23 @@ def build_parser() -> argparse.ArgumentParser:
     _add_limit(compare)
     _add_workers(compare)
 
+    cep_both = subcommands.add_parser(
+        "comparar_cep",
+        help="Roda o comparar do CEP nos dois builds (.venv e .venv-ft) lado a lado.",
+    )
+    cep_both.add_argument(
+        "--limit",
+        type=int,
+        default=200,
+        help="Linhas usadas. Padrão: 200.",
+    )
+    cep_both.add_argument(
+        "--workers",
+        type=int,
+        default=2,
+        help="Workers do pool. Padrão: 2 (~100 linhas por worker).",
+    )
+
     cpu = subcommands.add_parser(
         "cpu",
         help="Cálculo pesado: sequencial vs threads vs processos (efeito do GIL).",
@@ -107,6 +127,9 @@ def main() -> None:
             return
         if args.comando == "cpu":
             run_cpu_compare(upto=args.upto, workers=args.workers)
+            return
+        if args.comando == "comparar_cep":
+            run_cep_compare_both(limit=args.limit, workers=args.workers)
             return
         rows = load_rows(args.limit)
         print("API: ViaCEP (https://viacep.com.br)")
@@ -164,6 +187,39 @@ def run_compare(rows: list[dict], workers: int) -> None:
             f"Speedup: {speedup:.2f} "
             "(menor que 1: neste lote as threads não ficaram mais rápidas)"
         )
+
+
+def run_cep_compare_both(limit: int, workers: int) -> None:
+    """Roda o comparar do CEP nos dois builds (.venv e .venv-ft) lado a lado.
+
+    Cada build é outro interpretador, então a gente chama o `comparar` de cada
+    venv como subprocesso. O ponto: free-threaded não muda o tempo do CEP.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    builds = [
+        ("COM GIL  (.venv)", project_root / ".venv"),
+        ("SEM GIL  (.venv-ft)", project_root / ".venv-ft"),
+    ]
+    print(f"CEP demo (ViaCEP) · limit={limit} workers={workers}")
+    print("Compare o tempo e o speedup nos dois builds.")
+    print("Esperado: parecidos — free-threaded não ajuda no I/O.")
+    print()
+    for label, venv in builds:
+        py = venv / "Scripts" / "python.exe"
+        if not py.exists():
+            py = venv / "bin" / "python"  # Linux/macOS
+        if not py.exists():
+            print(f"{label}: interpretador não encontrado em {venv}")
+            continue
+        print(f">>> {label}")
+        print("-" * 60)
+        subprocess.run(
+            [str(py), "src/main.py", "comparar",
+             "--limit", str(limit), "--workers", str(workers)]
+        )
+        print()
+    print("Os tempos e o speedup devem ficar parecidos nos dois.")
+    print("No CEP, tirar o GIL não muda nada — o limite é a rede.")
 
 
 def _warn(calls: int) -> None:

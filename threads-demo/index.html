@@ -648,27 +648,45 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
             <span class="top">&lt;/&gt; BENCHMARK.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"medido nesta máquina"</span><span class="fn">)</span></span>
         </div>
-        <h2>Mesmo trabalho pesado,<br>dois <span class="accent">Pythons</span>.</h2>
+        <h2>Os dois exemplos,<br>dois <span class="accent">Pythons</span>.</h2>
         <table>
             <thead>
-                <tr><th>Build</th><th>Sequencial</th><th>Threads</th><th>Processos</th></tr>
+                <tr><th>Exemplo</th><th>Modo</th><th>Com GIL (.venv)</th><th>Sem GIL (.venv-ft)</th></tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>GIL ligado</td>
-                    <td>2.44s</td>
-                    <td class="no">2.60s · 0.94x</td>
-                    <td class="ok">1.32s · 1.85x</td>
+                    <td>CEP (I/O)</td>
+                    <td>sequencial</td>
+                    <td class="muted">__s</td>
+                    <td class="muted">__s</td>
                 </tr>
                 <tr>
-                    <td>Free-threaded</td>
+                    <td>CEP (I/O)</td>
+                    <td>threads</td>
+                    <td class="muted">__s · __x</td>
+                    <td class="muted">__s · __x</td>
+                </tr>
+                <tr>
+                    <td>Carimbo (CPU)</td>
+                    <td>sequencial</td>
+                    <td>2.44s</td>
                     <td>3.17s</td>
+                </tr>
+                <tr>
+                    <td>Carimbo (CPU)</td>
+                    <td>threads</td>
+                    <td class="no">2.60s · 0.94x</td>
                     <td class="ok">1.11s · 2.87x</td>
+                </tr>
+                <tr>
+                    <td>Carimbo (CPU)</td>
+                    <td>processos</td>
+                    <td class="ok">1.32s · 1.85x</td>
                     <td class="ok">1.62s · 1.95x</td>
                 </tr>
             </tbody>
         </table>
-        <p class="muted" style="margin-top:2vh;">Com GIL: threads num núcleo só. Sem GIL: o ThreadPool <span class="green">ocupa vários núcleos</span>.</p>
+        <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho extra — o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade.</p>
     </section>
 
     <!-- 12 RESUMO -->

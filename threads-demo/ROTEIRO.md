@@ -122,7 +122,21 @@ python src/main.py threads --limit 20 --workers 10
 
 ## 11 — Medido
 
-"Os dois slides anteriores, medidos. O mesmo carimbo, dois Pythons. Se o ao vivo ainda estiver rodando, essa tabela é uma medição já feita — o número mexe a cada execução, o padrão é o que importa. Com o GIL ligado: sequencial 2,44s; threads 2,60s, 0,94x — um núcleo só, e o overhead até deixa um pouco mais lento; processos 1,32s, 1,85x. Sem o GIL: o sequencial sobe para 3,17s — esse build tem um custo; as threads caem para 1,11s, 2,87x; processos 1,62s, 1,95x. Com GIL, threads num núcleo só. Sem GIL, o ThreadPool ocupa vários núcleos. A tabela fecha o arco: o mesmo 'às vezes' da capa, agora explicado."
+"Os dois exemplos, dois Pythons — agora na mesma tabela. As linhas de cima são o CEP, as de baixo são o carimbo. No CEP, o free-threaded não dá ganho extra: o gargalo é a rede, não a CPU, então tirar o GIL não muda nada. No carimbo, a história é outra. Com o GIL ligado: sequencial 2,44s; threads 2,60s, 0,94x — um núcleo só, e o overhead até deixa um pouco mais lento; processos 1,32s, 1,85x. Sem o GIL: o sequencial sobe para 3,17s — esse build tem um custo; as threads caem para 1,11s, 2,87x; processos 1,62s, 1,95x. Com GIL, threads num núcleo só. Sem GIL, o ThreadPool ocupa vários núcleos. A tabela fecha o arco: o mesmo 'às vezes' da capa, agora explicado nos dois exemplos."
+
+**Pra preencher as linhas do CEP (rode e anote):**
+
+```bash
+# CEP com GIL
+python src/main.py comparar --limit 20 --workers 10
+
+# CEP sem GIL (free-threaded)
+.venv-ft/Scripts/python.exe src/main.py comparar --limit 20 --workers 10
+```
+
+Cada um imprime `Tempo sequencial`, `Tempo com Threads` e o `Speedup`. Anota nas duas linhas de CEP da tabela. O ponto didático: o speedup do CEP é parecido nos dois builds — free-threaded não ajuda no I/O.
+
+**As linhas do carimbo** já estão preenchidas como referência; se quiser medir na hora, é o `cpu` nos dois venvs (slide 8 e 9).
 
 ## 12 — Três ideias
 

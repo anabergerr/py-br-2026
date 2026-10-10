@@ -226,6 +226,29 @@ python src/generate_data.py --count 200
 O padrão desse gerador é 100. Os CEPs são públicos reais, intercalados de
 várias cidades.
 
+### Comandos
+
+Cada exemplo é um subcomando de `src/main.py`. Rode a partir da pasta `threads-demo`.
+
+| Comando | O que faz | Precisa de internet? |
+| --- | --- | --- |
+| `python src/main.py uma` | 1 CEP só — smoke test da API | sim |
+| `python src/main.py sequencial --limit 20` | lote, uma por vez (baseline) | sim |
+| `python src/main.py threads --limit 20 --workers 10` | lote com ThreadPool (acelera) | sim |
+| `python src/main.py comparar --limit 20 --workers 10` | sequencial + threads + speedup, numa execução | sim |
+| `python src/main.py benchmark --limit 20` | mede com 1, 2, 5, 10 e 20 workers | sim |
+| `python src/main.py cpu --upto 800000 --workers 4` | carimbo SHA-256: sequencial vs threads vs processos (GIL) | **não** |
+| `python src/main.py comparar_cep --limit 200 --workers 2` | roda o `comparar` do CEP nos dois builds (`.venv` e `.venv-ft`) lado a lado | sim |
+
+O `cpu` nos dois interpretadores (o contraste da palestra):
+
+```powershell
+.\.venv\Scripts\python.exe   src\main.py cpu --upto 800000 --workers 4   # com GIL
+.\.venv-ft\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4   # sem GIL
+```
+
+`--limit` = linhas do CSV; `--workers` = threads do pool; `--upto` = blocos a carimbar (menos = mais rápido).
+
 ### Roteiro da palestra
 
 1. O problema. Mostre uma linha de `data/ceps.csv` e explique que cada linha
