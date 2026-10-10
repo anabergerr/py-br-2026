@@ -476,7 +476,7 @@
             <span class="bottom"><span class="fn">print(</span><span class="str">"threads &amp; gil"</span><span class="fn">)</span></span>
         </div>
         <h1>Threads, GIL<br>e <span class="accent">free-threaded</span><br>Python</h1>
-        <p class="lead">Do conceito ao código — com uma planilha de CEPs e um loop de primos.</p>
+        <p class="lead">Você joga mais threads no problema. Às vezes voa. Às vezes não muda nada. Esta palestra é sobre esse <span class="accent">"às vezes"</span>.</p>
     </section>
 
     <!-- 2 O QUE É THREAD -->
@@ -487,19 +487,34 @@
         </div>
         <h2>É a menor unidade<br>de <span class="accent">execução</span> de um programa.</h2>
         <ul>
-            <li>Várias threads = várias <span class="green">linhas de trabalho</span> no mesmo programa.</li>
-            <li>Compartilham a mesma memória — comunicação é direta.</li>
+            <li>Uma thread = <span class="green">uma linha de trabalho</span>. Faz uma ação por vez: buscar um CEP.</li>
+            <li>Várias linhas no mesmo programa, na mesma memória.</li>
             <li>Ter várias <span class="pink">não</span> significa, por si só, rodar ao mesmo tempo.</li>
         </ul>
+    </section>
+
+    <!-- NÚCLEO / THREAD / PROCESSO -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; CONCEITO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"núcleo, thread, processo"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Do programa<br>até a <span class="accent">CPU</span>.</h2>
+        <ul>
+            <li><span class="green">Processo</span> — o programa inteiro. Ex.: o script que lê a planilha.</li>
+            <li><span class="green">Thread</span> — uma linha de trabalho dele. Ex.: buscar um CEP.</li>
+            <li><span class="green">Núcleo</span> — a CPU que executa essa ação.</li>
+        </ul>
+        <p class="muted" style="margin-top:2vh;">4 linhas da planilha de uma vez = 4 threads, 1 processo. Quantos núcleos para executar?</p>
     </section>
 
     <!-- 3 CONCORRÊNCIA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; COMPORTAMENTO.py</span>
-            <span class="bottom"><span class="fn">print(</span><span class="str">"concorrência"</span><span class="fn">)</span></span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"várias threads, 1 núcleo"</span><span class="fn">)</span></span>
         </div>
-        <h2>Lidar com várias coisas<br><span class="accent">ao mesmo tempo</span>.</h2>
+        <h2>Várias threads,<br><span class="accent">um núcleo</span> só.</h2>
 
         <div class="scene scene-conc" aria-hidden="true">
             <div class="mesas">
@@ -510,16 +525,16 @@
             </div>
             <div class="garcom">G</div>
         </div>
-        <p class="scene-caption"><span class="pink">1 garçom</span> · 4 mesas — uma ação por vez</p>
+        <p class="scene-caption"><span class="pink">Concorrência</span> · as 4 buscas andam, o núcleo faz uma por vez</p>
     </section>
 
     <!-- 4 PARALELISMO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; COMPORTAMENTO.py</span>
-            <span class="bottom"><span class="fn">print(</span><span class="str">"paralelismo"</span><span class="fn">)</span></span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"1 thread por núcleo"</span><span class="fn">)</span></span>
         </div>
-        <h2>Fazer várias coisas<br>no <span class="accent">mesmo milissegundo</span>.</h2>
+        <h2>Uma thread<br>em cada <span class="accent">núcleo</span>.</h2>
 
         <div class="scene scene-para" aria-hidden="true">
             <div class="mesas">
@@ -529,7 +544,7 @@
                 <div class="mesa"><div class="garcom">G</div><span class="label">mesa 4</span><div class="bar"><div class="fill"></div></div></div>
             </div>
         </div>
-        <p class="scene-caption"><span class="pink">4 garçons</span> · 4 mesas — ao mesmo tempo</p>
+        <p class="scene-caption"><span class="pink">Paralelismo</span> · as 4 buscas acontecem neste instante</p>
     </section>
 
     <!-- 5 GIL -->
@@ -539,7 +554,7 @@
             <span class="bottom"><span class="fn">print(</span><span class="str">"global interpreter lock"</span><span class="fn">)</span></span>
         </div>
         <h2>Uma trava do Python:<br>só <span class="accent">1 thread</span> roda<br>código Python por vez.</h2>
-        <p class="muted">Mesmo com 16 núcleos, o Python usa 1 por vez — alternando entre as threads.</p>
+        <p class="muted">Lembra dos 4 garçons? Em Python puro, o GIL <span class="pink">não deixa</span>. Volta pro garçom único.</p>
     </section>
 
     <!-- 6 I/O vs CPU -->
@@ -548,7 +563,7 @@
             <span class="top">&lt;/&gt; DIAGNÓSTICO.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"I/O vs CPU"</span><span class="fn">)</span></span>
         </div>
-        <h2>Onde o tempo <span class="accent">some?</span></h2>
+        <h2>Quando a thread <span class="accent">ajuda?</span></h2>
         <table>
             <thead>
                 <tr><th></th><th>I/O-bound</th><th>CPU-bound</th></tr>
@@ -562,7 +577,7 @@
                 <tr>
                     <td>Exemplo</td>
                     <td>consulta ViaCEP</td>
-                    <td>redimensionar fotos em lote</td>
+                    <td>carimbo de arquivo</td>
                 </tr>
                 <tr>
                     <td>Threads ajudam?</td>
@@ -584,12 +599,14 @@
             <span class="top">&lt;/&gt; DEMO.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"planilha + API"</span><span class="fn">)</span></span>
         </div>
-        <h2>Completar uma planilha<br>de <span class="accent">CEPs</span> com os endereços.</h2>
+        <h2>Caiu no seu colo:<br>uma planilha de <span class="accent">CEPs</span>.</h2>
         <ul>
-            <li>Cada linha é uma chamada <b>de verdade</b> na API do ViaCEP.</li>
+            <li>Milhares de linhas, cada uma precisa virar um endereço.</li>
+            <li>Cada linha é uma ação: buscar o CEP no ViaCEP.</li>
             <li>Uma linha não depende da outra.</li>
             <li>Uma por vez: o tempo total é a <span class="pink">soma de todas as esperas</span>.</li>
         </ul>
+        <p class="muted" style="margin-top:2vh;">A coluna da esquerda: o tempo está na espera.</p>
     </section>
 
     <!-- 8 CÓDIGO SEQUENCIAL -->
@@ -605,7 +622,7 @@
         <span class="s">"id"</span>: row[<span class="s">"id"</span>],
         <span class="s">"endereco"</span>: <span class="b">format_address</span>(looked_up),
     })</pre>
-        <p class="muted" style="margin-top:2vh;">A próxima só começa quando a anterior termina.</p>
+        <p class="muted" style="margin-top:2vh;">O garçom único: a próxima chamada espera.</p>
     </section>
 
     <!-- 9 CÓDIGO COM THREADS -->
@@ -619,7 +636,7 @@
 
 <span class="k">with</span> <span class="n">ThreadPoolExecutor</span>(max_workers=<span class="b">10</span>) <span class="k">as</span> executor:
     results = <span class="b">list</span>(executor.map(_lookup, rows))</pre>
-        <p class="muted" style="margin-top:2vh;">10 workers · 20 linhas · cada worker pega a próxima quando termina.</p>
+        <p class="muted" style="margin-top:2vh;">10 workers · 20 linhas · cada worker pega a próxima ação.</p>
     </section>
 
     <!-- 10 OVERLAP -->
@@ -647,7 +664,7 @@
         <h2>Enquanto espera a internet,<br>a thread <span class="accent">solta o GIL</span>.</h2>
         <ul>
             <li>Outra thread entra e dispara a próxima chamada.</li>
-            <li>Várias chamadas acontecem <b>ao mesmo tempo</b>.</li>
+            <li>A rede espera junta. O Python segue num <b>núcleo só</b>.</li>
             <li>O GIL continua ali — ele só não trava quando a thread está esperando.</li>
         </ul>
     </section>
@@ -656,15 +673,17 @@
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; cpu_bound.py</span>
-            <span class="bottom"><span class="fn">print(</span><span class="str">"só CPU, nenhuma espera"</span><span class="fn">)</span></span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"a outra coluna"</span><span class="fn">)</span></span>
         </div>
-        <h2>Trabalho que <span class="accent">ocupa a CPU</span>.</h2>
+        <h2>E se <span class="accent">não houver</span> espera?</h2>
+        <p style="margin-bottom:2vh;">Um carimbo de arquivo. SHA-256: o mesmo conteúdo, o mesmo código. Mudou um byte, o carimbo muda. E a CPU não para nunca.</p>
 <pre class="code"><span class="k">import</span> hashlib
 
-<span class="c"># verificar a integridade de muitos blocos</span>
-<span class="k">for</span> bloco <span class="k">in</span> blocos:
-    checksum = hashlib.sha256(bloco).hexdigest()</pre>
-        <p class="muted" style="margin-top:2vh;">Ninguém espera a internet nem o disco. A CPU trabalha o tempo inteiro.</p>
+<span class="c"># 1024 bytes &lt; 2048: hashlib não solta o GIL</span>
+<span class="k">for</span> i <span class="k">in</span> <span class="b">range</span>(start, end):
+    payload = i.to_bytes(<span class="b">8</span>, <span class="s">"big"</span>) * <span class="b">128</span>
+    total += hashlib.sha256(payload).digest()[<span class="b">0</span>]</pre>
+        <p class="muted" style="margin-top:2vh;">A ação agora é carimbar um bloco. A CPU faz isso o tempo inteiro, e o GIL fica preso.</p>
     </section>
 
     <!-- 13 CPU COM GIL: THREADS vs PROCESSOS -->
@@ -673,15 +692,15 @@
             <span class="top">&lt;/&gt; CONTRASTE.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"CPU com GIL"</span><span class="fn">)</span></span>
         </div>
-        <h2>Threads <span class="pink">empatam</span>.<br>Processos <span class="accent">ganham</span>.</h2>
+        <h2>ThreadPool: <span class="pink">1 núcleo</span>.<br>ProcessPool: <span class="accent">vários núcleos</span>.</h2>
         <div class="two-col" style="margin-top:1vh;">
             <div class="col">
                 <h3>ThreadPoolExecutor</h3>
-                <p>Mesmo Python, mesmo GIL. As threads só se alternam — o tempo fica igual ao sequencial.</p>
+                <p>Várias threads, um processo, um GIL. No carimbo elas se revezam no mesmo núcleo. O tempo empata com o sequencial.</p>
             </div>
             <div class="col">
                 <h3>ProcessPoolExecutor</h3>
-                <p>Cada processo tem seu próprio Python — e seu próprio GIL. Agora o ganho aparece.</p>
+                <p>Cada processo tem seu Python e seu GIL. Quatro workers podem ocupar quatro núcleos ao mesmo tempo.</p>
             </div>
         </div>
         <div class="cmd" style="margin-top:3vh;"><span class="prompt">$</span> python src/main.py cpu --upto 800000 --workers 4</div>
@@ -693,10 +712,11 @@
             <span class="top">&lt;/&gt; PEP_703.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"free-threaded"</span><span class="fn">)</span></span>
         </div>
-        <h2>Python 3.13+<br><span class="accent">sem o GIL</span>.</h2>
+        <h2>E se tirassem<br>a <span class="accent">trava</span>?</h2>
+        <p style="margin-bottom:2vh;">Python 3.13+ tem um build sem o GIL. O mesmo código, outra história.</p>
         <ul>
             <li>Versão experimental oficial: <span class="green">python3.13t</span>.</li>
-            <li>Mesmo código, mesmas threads — agora usando vários núcleos ao mesmo tempo.</li>
+            <li>O mesmo ThreadPoolExecutor, sem o GIL, passa a ocupar vários núcleos.</li>
             <li>Ainda experimental: bibliotecas em C podem quebrar. Essa demo usa só a biblioteca padrão.</li>
         </ul>
 <pre class="code" style="margin-top:2vh;"><span class="k">import</span> sys
@@ -729,7 +749,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
                 </tr>
             </tbody>
         </table>
-        <p class="muted" style="margin-top:2vh;">Com GIL: threads ≈ uma por vez. Sem GIL: threads <span class="green">aceleram de verdade</span>.</p>
+        <p class="muted" style="margin-top:2vh;">Com GIL: threads num núcleo só. Sem GIL: o ThreadPool <span class="green">ocupa vários núcleos</span>.</p>
     </section>
 
     <!-- 16 RESUMO -->
@@ -741,9 +761,10 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <h2>Três ideias.</h2>
         <ul>
             <li><span class="green">I/O-bound</span> → threads já ajudam hoje.</li>
-            <li><span class="pink">CPU-bound</span> + GIL → threads não aceleram; use processos.</li>
-            <li><span class="green">Free-threaded</span> → threads no CPU finalmente ganham núcleos.</li>
+            <li><span class="pink">CPU-bound</span> + GIL → o ThreadPool fica num núcleo só; processos usam os outros.</li>
+            <li><span class="green">Free-threaded</span> → o mesmo ThreadPool finalmente ocupa vários núcleos.</li>
         </ul>
+        <p class="muted" style="margin-top:3vh;">Regra de bolso: <span class="pink">com o GIL</span>, thread não espalha em núcleos — processo sim. <span class="green">Sem o GIL</span>, thread também espalha.</p>
     </section>
 
     <!-- 17 OBRIGADA -->
