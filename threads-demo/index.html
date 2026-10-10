@@ -522,7 +522,22 @@
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> python src/main.py sequencial --limit 20</div>
     </section>
 
-    <!-- 5 THREADS -->
+    <!-- 5 CONCEITOS -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; conceitos.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"processo, thread, núcleo"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Três palavras,<br><span class="accent">uma vez</span>.</h2>
+        <ul>
+            <li><span class="green">Processo</span> — o script rodando. Tem seu próprio Python e seu próprio <span class="pink">GIL</span>.</li>
+            <li><span class="green">Thread</span> — uma linha de trabalho dentro do processo. Compartilha a memória com as outras. Várias threads, um processo, <span class="pink">um GIL</span>.</li>
+            <li><span class="green">Núcleo</span> — a unidade da CPU que executa de fato. Vários núcleos = vários que rodam ao mesmo tempo.</li>
+        </ul>
+        <p class="muted" style="margin-top:2vh;">Até agora: <span class="green">1 processo, 1 thread</span>. O próximo liga mais threads no <span class="pink">mesmo</span> processo.</p>
+    </section>
+
+    <!-- 6 THREADS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; threaded.py</span>
@@ -537,7 +552,7 @@
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> python src/main.py threads --limit 20 --workers 10</div>
     </section>
 
-    <!-- 6 POR QUE ACELEROU? -->
+    <!-- 7 POR QUE ACELEROU? -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; GIL.py</span>
@@ -563,7 +578,7 @@
         <p class="scene-caption"><span class="pink">Concorrência</span> · 1 garçom reveza · quem anda junto é a rede</p>
     </section>
 
-    <!-- 7 A PEGADINHA -->
+    <!-- 8 A PEGADINHA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; cpu_bound.py</span>
@@ -580,7 +595,7 @@
         <p class="muted" style="margin-top:2vh;">A CPU não para nunca — a thread <span class="pink">nunca devolve o bastão</span>. Mesmas threads, mesmo ThreadPool. Vão acelerar de novo, <span class="pink">certo?</span></p>
     </section>
 
-    <!-- 8 DECEPÇÃO + PROCESSOS -->
+    <!-- 9 DECEPÇÃO + PROCESSOS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; CONTRASTE.py</span>
@@ -609,7 +624,7 @@
         <div class="cmd" style="margin-top:1.5vh;"><span class="prompt">$</span> .\.venv\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
     </section>
 
-    <!-- 9 FREE-THREADED -->
+    <!-- 10 FREE-THREADED -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; PEP_703.py</span>
@@ -627,7 +642,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> .\.venv-ft\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
     </section>
 
-    <!-- 10 FREE-THREADED EM 2026 -->
+    <!-- 11 FREE-THREADED EM 2026 -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; UPDATES_2026.py</span>
@@ -642,7 +657,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         </ul>
     </section>
 
-    <!-- 11 MEDIDO -->
+    <!-- 12 MEDIDO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; BENCHMARK.py</span>
@@ -657,39 +672,39 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
                 <tr>
                     <td>CEP (I/O)</td>
                     <td>sequencial</td>
-                    <td class="muted">__s</td>
-                    <td class="muted">__s</td>
+                    <td>26.33s</td>
+                    <td>14.18s</td>
                 </tr>
                 <tr>
                     <td>CEP (I/O)</td>
                     <td>threads</td>
-                    <td class="muted">__s · __x</td>
-                    <td class="muted">__s · __x</td>
+                    <td class="ok">15.50s · 1.70x</td>
+                    <td class="no">18.98s · 0.75x</td>
                 </tr>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>sequencial</td>
-                    <td>2.44s</td>
-                    <td>3.17s</td>
+                    <td>2.87s</td>
+                    <td>2.88s</td>
                 </tr>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>threads</td>
-                    <td class="no">2.60s · 0.94x</td>
-                    <td class="ok">1.11s · 2.87x</td>
+                    <td class="no">2.75s · 1.05x</td>
+                    <td class="ok">0.80s · 3.62x</td>
                 </tr>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>processos</td>
-                    <td class="ok">1.32s · 1.85x</td>
-                    <td class="ok">1.62s · 1.95x</td>
+                    <td class="ok">1.12s · 2.57x</td>
+                    <td class="ok">1.07s · 2.71x</td>
                 </tr>
             </tbody>
         </table>
-        <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho extra — o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade.</p>
+        <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho — e pode até atrapalhar (0,75x): o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade (3,62x).</p>
     </section>
 
-    <!-- 12 RESUMO -->
+    <!-- 13 RESUMO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; RESUMO.py</span>
@@ -704,7 +719,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <p class="muted" style="margin-top:3vh;">Regra de bolso: <span class="pink">com o GIL</span>, thread não espalha em núcleos — processo sim. <span class="green">Sem o GIL</span>, thread também espalha.</p>
     </section>
 
-    <!-- 13 PERGUNTAS -->
+    <!-- 14 PERGUNTAS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; FIM.py</span>
@@ -714,7 +729,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <p class="lead">github.com/… · ViaCEP + cpu · .venv vs .venv-ft</p>
     </section>
 
-    <!-- 14 CRÉDITOS -->
+    <!-- 15 CRÉDITOS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; OBRIGADA.py</span>
