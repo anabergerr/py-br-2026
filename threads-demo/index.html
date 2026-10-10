@@ -469,17 +469,27 @@
 
 <main class="deck" id="deck">
 
-    <!-- 1 CAPA -->
+    <!-- 1 APRESENTAÇÃO -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; ola.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"olá!"</span><span class="fn">)</span></span>
+        </div>
+        <h1>Olá!<br><span class="accent">Sou a Ana</span></h1>
+        <p class="lead">[Dev Python / Zup] </p>
+    </section>
+
+    <!-- 2 CAPA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; PALESTRA.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"threads &amp; gil"</span><span class="fn">)</span></span>
         </div>
         <h1>Threads, GIL<br>e <span class="accent">free-threaded</span><br>Python</h1>
-        <p class="lead">Todo mundo já adicionou threads achando que ia acelerar. E aí: ou voou, ou não mudou nada. Esta palestra é o <span class="accent">porquê</span>.</p>
+        <p class="lead">Todo mundo já adicionou threads achando que ia acelerar. E aí: ou acelerou, ou não mudou nada. Esta palestra é o <span class="accent">porquê</span>.</p>
     </section>
 
-    <!-- 2 O PROBLEMA -->
+    <!-- 3 O PROBLEMA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; DEMO.py</span>
@@ -495,7 +505,7 @@
         <p class="muted" style="margin-top:2vh;">Tudo roda num <span class="green">processo</span> só — o script — com uma <span class="green">thread</span>, uma linha de trabalho.</p>
     </section>
 
-    <!-- 3 SEQUENCIAL -->
+    <!-- 4 SEQUENCIAL -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; sequential.py</span>
@@ -512,7 +522,7 @@
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> python src/main.py sequencial --limit 20</div>
     </section>
 
-    <!-- 4 THREADS -->
+    <!-- 5 THREADS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; threaded.py</span>
@@ -527,11 +537,11 @@
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> python src/main.py threads --limit 20 --workers 10</div>
     </section>
 
-    <!-- 5 POR QUE VOOU? -->
+    <!-- 6 POR QUE ACELEROU? -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; GIL.py</span>
-            <span class="bottom"><span class="fn">print(</span><span class="str">"por que voou?"</span><span class="fn">)</span></span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"por que acelerou?"</span><span class="fn">)</span></span>
         </div>
         <h2>Enquanto espera a internet,<br>a thread <span class="accent">solta o GIL</span>.</h2>
 <pre class="ascii">Sequencial   [--1--][--2--][--3--][--4--]
@@ -553,24 +563,24 @@
         <p class="scene-caption"><span class="pink">Concorrência</span> · 1 garçom reveza · quem anda junto é a rede</p>
     </section>
 
-    <!-- 6 A PEGADINHA -->
+    <!-- 7 A PEGADINHA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; cpu_bound.py</span>
             <span class="bottom"><span class="fn">print(</span><span class="str">"a outra coluna"</span><span class="fn">)</span></span>
         </div>
         <h2>E se <span class="accent">não houver</span> espera?</h2>
-        <p style="margin-bottom:2vh;">Tira a rede. A ação agora é carimbar um arquivo — SHA-256. A CPU não para nunca, e a thread <span class="pink">nunca devolve o bastão</span>.</p>
+        <p style="margin-bottom:2vh;">Tira a rede. A ação agora é carimbar um arquivo — <b>SHA-256</b>: mesmo conteúdo gera o mesmo código; mudou 1 byte, o código muda. Na vida real, confere se um arquivo chegou inteiro.</p>
 <pre class="code"><span class="k">import</span> hashlib
 
 <span class="c"># 1024 bytes &lt; 2048: hashlib não solta o GIL</span>
 <span class="k">for</span> i <span class="k">in</span> <span class="b">range</span>(start, end):
     payload = i.to_bytes(<span class="b">8</span>, <span class="s">"big"</span>) * <span class="b">128</span>
     total += hashlib.sha256(payload).digest()[<span class="b">0</span>]</pre>
-        <p class="muted" style="margin-top:2vh;">Mesmas threads, mesmo ThreadPool. Vão voar de novo, <span class="pink">certo?</span></p>
+        <p class="muted" style="margin-top:2vh;">A CPU não para nunca — a thread <span class="pink">nunca devolve o bastão</span>. Mesmas threads, mesmo ThreadPool. Vão acelerar de novo, <span class="pink">certo?</span></p>
     </section>
 
-    <!-- 7 DECEPÇÃO + PROCESSOS -->
+    <!-- 8 DECEPÇÃO + PROCESSOS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; CONTRASTE.py</span>
@@ -599,7 +609,7 @@
         <div class="cmd" style="margin-top:1.5vh;"><span class="prompt">$</span> .\.venv\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
     </section>
 
-    <!-- 8 FREE-THREADED -->
+    <!-- 9 FREE-THREADED -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; PEP_703.py</span>
@@ -608,16 +618,31 @@
         <h2>E se tirassem<br>a <span class="accent">trava</span>?</h2>
         <p style="margin-bottom:2vh;">Python 3.13+ tem um build sem o GIL. O mesmo código, outra história.</p>
         <ul>
-            <li>Versão experimental oficial: <span class="green">python3.13t</span>.</li>
+            <li>Build sem GIL desde o <span class="green">3.13</span>. No 3.13 era experimental; do <span class="green">3.14</span> em diante é oficialmente suportado.</li>
             <li>O mesmo ThreadPoolExecutor, sem o GIL, passa a ocupar vários núcleos.</li>
-            <li>Ainda experimental: bibliotecas em C podem quebrar. Essa demo usa só a biblioteca padrão.</li>
+            <li>Ainda não é o default. Bibliotecas em C podem ter atrito — essa demo usa só a stdlib.</li>
         </ul>
 <pre class="code" style="margin-top:2vh;"><span class="k">import</span> sys
 sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> .\.venv-ft\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
     </section>
 
-    <!-- 9 MEDIDO -->
+    <!-- 10 FREE-THREADED EM 2026 -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; UPDATES_2026.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"onde estamos"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Free-threaded <span class="accent">em 2026</span>.</h2>
+        <ul>
+            <li><span class="green">3.13</span> (out/2024) — build sem GIL entra, <span class="pink">experimental</span> (PEP 703, fase I).</li>
+            <li><span class="green">3.14</span> (out/2025) — deixa de ser experimental, vira oficialmente suportado (PEP 779, fase II). Ainda opcional.</li>
+            <li><span class="green">3.15</span> (out/2026) — Stable ABI <span class="green">abi3t</span> pra free-threaded; macOS instala por padrão.</li>
+            <li>Ainda não é o <span class="pink">default</span> — fase III indecidida, depende do ecossistema de extensões C.</li>
+        </ul>
+    </section>
+
+    <!-- 11 MEDIDO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; BENCHMARK.py</span>
@@ -646,7 +671,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <p class="muted" style="margin-top:2vh;">Com GIL: threads num núcleo só. Sem GIL: o ThreadPool <span class="green">ocupa vários núcleos</span>.</p>
     </section>
 
-    <!-- 10 RESUMO -->
+    <!-- 12 RESUMO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; RESUMO.py</span>
@@ -661,7 +686,7 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <p class="muted" style="margin-top:3vh;">Regra de bolso: <span class="pink">com o GIL</span>, thread não espalha em núcleos — processo sim. <span class="green">Sem o GIL</span>, thread também espalha.</p>
     </section>
 
-    <!-- 11 PERGUNTAS -->
+    <!-- 13 PERGUNTAS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; FIM.py</span>
@@ -669,6 +694,19 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         </div>
         <h1>Perguntas?</h1>
         <p class="lead">github.com/… · ViaCEP + cpu · .venv vs .venv-ft</p>
+    </section>
+
+    <!-- 14 CRÉDITOS -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; OBRIGADA.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"créditos"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Créditos.</h2>
+        <ul>
+            <li>Arte: <span class="green">Lucas</span></li>
+        </ul>
+        <p class="muted" style="margin-top:3vh;">Obrigada! 🎀</p>
     </section>
 
 </main>
