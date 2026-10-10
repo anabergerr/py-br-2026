@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads, GIL e Free-threaded Python</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;600;800;900&display=swap');
+
+        :root {
+            --pink: #ff5aa8;
+            --pink-strong: #ff2e86;
+            --magenta: #c7569b;
+            --purple: #6243b5;
+            --indigo: #3f479a;
+            --green: #39ff88;
+            --ink: #0b0d1a;
+            --ink-2: #121530;
+            --muted: rgba(255, 255, 255, 0.65);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background:
+                radial-gradient(1200px 800px at 85% 15%, rgba(255, 90, 168, 0.25), transparent 60%),
+                radial-gradient(1000px 700px at 10% 90%, rgba(57, 255, 136, 0.12), transparent 60%),
+                linear-gradient(135deg, #c7569b 0%, #6243b5 50%, #3f479a 100%);
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #fff;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .deck {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 7vh 9vw;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(16px);
+            transition: opacity 280ms ease, transform 280ms ease;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        /* ----- Terminal tag (identidade) ----- */
+        .tag {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 3vh;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+        .tag .top {
+            background: var(--green);
+            color: #001b0d;
+            padding: 4px 12px;
+            font-size: clamp(0.75rem, 1.1vw, 0.9rem);
+            letter-spacing: 0.04em;
+        }
+        .tag .bottom {
+            background: var(--ink);
+            color: #fff;
+            padding: 8px 14px;
+            font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+            margin-top: 2px;
+        }
+        .tag .bottom .fn { color: #fff; }
+        .tag .bottom .str { color: var(--green); }
+
+        /* ----- Typography ----- */
+        h1 {
+            font-size: clamp(2.8rem, 6.5vw, 5.2rem);
+            font-weight: 900;
+            line-height: 1.02;
+            letter-spacing: -0.02em;
+            margin-bottom: 2.5vh;
+        }
+        h1 .accent { color: var(--green); }
+
+        h2 {
+            font-size: clamp(2rem, 4.2vw, 3.2rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.015em;
+            margin-bottom: 3vh;
+        }
+        h2 .accent { color: var(--pink); }
+
+        h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            color: var(--green);
+            margin-bottom: 1.2vh;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        p, li {
+            font-size: clamp(1.1rem, 2vw, 1.5rem);
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .lead {
+            font-size: clamp(1.25rem, 2.3vw, 1.75rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 36ch;
+        }
+
+        ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2vh;
+        }
+        ul li {
+            padding-left: 1.5em;
+            position: relative;
+        }
+        ul li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--pink);
+            font-weight: 700;
+        }
+
+        .pink { color: var(--pink); font-weight: 700; }
+        .green { color: var(--green); font-weight: 700; }
+        .muted { color: var(--muted); }
+
+        /* ----- Code block ----- */
+        pre.code {
+            background: rgba(11, 13, 26, 0.85);
+            border-left: 4px solid var(--green);
+            border-radius: 8px;
+            padding: 20px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.85rem, 1.35vw, 1.05rem);
+            line-height: 1.6;
+            color: #e6edf3;
+            overflow-x: auto;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+        }
+        pre.code .k { color: #ff5aa8; }   /* keyword */
+        pre.code .s { color: var(--green); } /* string */
+        pre.code .c { color: #7a8599; font-style: italic; }
+        pre.code .n { color: #c9d1d9; }
+        pre.code .d { color: #a9b1d6; }   /* decorator / dim */
+        pre.code .b { color: #ffd166; }   /* builtin */
+
+        .cmd {
+            background: rgba(11, 13, 26, 0.85);
+            border-left: 4px solid var(--pink);
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.85rem, 1.3vw, 1rem);
+            color: #e6edf3;
+        }
+        .cmd .prompt { color: var(--green); }
+
+        /* ----- Layout helpers ----- */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3vw;
+            align-items: start;
+        }
+        .col h3 { margin-top: 0; }
+
+        .stack { display: flex; flex-direction: column; gap: 2.5vh; }
+
+        /* ----- Table ----- */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+            background: rgba(11, 13, 26, 0.6);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        th {
+            background: rgba(57, 255, 136, 0.15);
+            color: var(--green);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        tr:last-child td { border-bottom: 0; }
+        td.ok { color: var(--green); font-weight: 600; }
+        td.no { color: var(--pink); font-weight: 600; }
+
+        /* ----- ASCII diagram ----- */
+        pre.ascii {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+            line-height: 1.5;
+            color: var(--green);
+            background: rgba(11, 13, 26, 0.75);
+            border-radius: 8px;
+            padding: 20px 24px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* ----- Chrome: progress + counter + hints ----- */
+        .progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--green);
+            z-index: 50;
+            transition: width 240ms ease;
+        }
+        .counter {
+            position: fixed;
+            bottom: 24px;
+            right: 32px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.75);
+            letter-spacing: 0.1em;
+            z-index: 40;
+        }
+        .counter .cur { color: var(--green); font-weight: 700; }
+        .hint {
+            position: fixed;
+            bottom: 24px;
+            left: 32px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            z-index: 40;
+        }
+        .nav-zone {
+            position: fixed;
+            top: 0;
+            width: 20vw;
+            height: 100vh;
+            z-index: 30;
+            cursor: pointer;
+        }
+        .nav-zone.left { left: 0; }
+        .nav-zone.right { right: 0; }
+
+        /* ============================================================
+           Garçons & mesas: animação didática
+           ============================================================ */
+        .scene {
+            --mesa-w: 110px;
+            --mesa-gap: 24px;
+            --garcom-s: 44px;
+            position: relative;
+            width: calc(4 * var(--mesa-w) + 3 * var(--mesa-gap));
+            margin: 2vh auto 1vh;
+        }
+
+        .mesas {
+            display: flex;
+            gap: var(--mesa-gap);
+            padding-top: 64px; /* espaço do garçom acima */
+        }
+
+        .mesa {
+            width: var(--mesa-w);
+            height: 110px;
+            background: rgba(11, 13, 26, 0.75);
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mesa .label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.55);
+            letter-spacing: 0.04em;
+        }
+
+        .mesa .bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .mesa .bar .fill {
+            height: 100%;
+            width: 0;
+            background: var(--green);
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(57, 255, 136, 0.6);
+        }
+
+        .garcom {
+            width: var(--garcom-s);
+            height: var(--garcom-s);
+            border-radius: 50%;
+            background: var(--pink-strong);
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 22px rgba(255, 46, 134, 0.55);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+        }
+
+        /* ---- Concorrência: 1 garçom percorre 4 mesas ---- */
+        .scene-conc .garcom {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            transform: translateX(33px);
+            animation: conc-waiter 8s infinite;
+        }
+        @keyframes conc-waiter {
+            0%,  22%  { transform: translateX(33px);  }   /* M1 */
+            25%, 47%  { transform: translateX(167px); }   /* M2 */
+            50%, 72%  { transform: translateX(301px); }   /* M3 */
+            75%, 97%  { transform: translateX(435px); }   /* M4 */
+            100%      { transform: translateX(33px);  }
+        }
+
+        /* Highlight da mesa sendo atendida */
+        .scene-conc .mesa { transition: box-shadow 200ms, border-color 200ms; }
+        .scene-conc .mesa.m1 { animation: hl 8s infinite; animation-delay: 0s; }
+        .scene-conc .mesa.m2 { animation: hl 8s infinite; animation-delay: -6s; }
+        .scene-conc .mesa.m3 { animation: hl 8s infinite; animation-delay: -4s; }
+        .scene-conc .mesa.m4 { animation: hl 8s infinite; animation-delay: -2s; }
+        @keyframes hl {
+            0%, 22%   { border-color: var(--pink); box-shadow: 0 0 24px rgba(255, 90, 168, 0.45); }
+            25%, 100% { border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25); }
+        }
+
+        /* Enchimento das barras (cada mesa no seu slot de tempo) */
+        .scene-conc .fill { animation: 8s linear infinite; }
+        .scene-conc .m1 .fill { animation-name: conc-f1; }
+        .scene-conc .m2 .fill { animation-name: conc-f2; }
+        .scene-conc .m3 .fill { animation-name: conc-f3; }
+        .scene-conc .m4 .fill { animation-name: conc-f4; }
+
+        @keyframes conc-f1 {
+            0%        { width: 0%; }
+            22%       { width: 100%; }
+            97%       { width: 100%; }
+            100%      { width: 0%; }
+        }
+        @keyframes conc-f2 {
+            0%, 25%   { width: 0%; }
+            47%       { width: 100%; }
+            97%       { width: 100%; }
+            100%      { width: 0%; }
+        }
+        @keyframes conc-f3 {
+            0%, 50%   { width: 0%; }
+            72%       { width: 100%; }
+            97%       { width: 100%; }
+            100%      { width: 0%; }
+        }
+        @keyframes conc-f4 {
+            0%, 75%   { width: 0%; }
+            97%       { width: 100%; }
+            100%      { width: 0%; }
+        }
+
+        /* ---- Paralelismo: 4 garçons, 4 mesas, tudo junto ---- */
+        .scene-para .mesa .garcom {
+            position: absolute;
+            top: -56px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .scene-para .fill { animation: para-f 8s linear infinite; }
+        @keyframes para-f {
+            0%   { width: 0%; }
+            22%  { width: 100%; }
+            97%  { width: 100%; }
+            100% { width: 0%; }
+        }
+        .scene-para .mesa {
+            animation: para-hl 8s infinite;
+        }
+        @keyframes para-hl {
+            0%, 22%   { border-color: var(--pink); box-shadow: 0 0 24px rgba(255, 90, 168, 0.45); }
+            25%, 100% { border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25); }
+        }
+
+        .scene-caption {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 1.5vh;
+            letter-spacing: 0.04em;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .scene *, .scene { animation: none !important; }
+            .scene .fill { width: 100% !important; }
+        }
+
+        @media (max-width: 760px) {
+            .slide { padding: 6vh 6vw; }
+            .two-col { grid-template-columns: 1fr; gap: 2vh; }
+            .counter, .hint { font-size: 0.75rem; }
+            .nav-zone { width: 30vw; }
+            .scene {
+                --mesa-w: 68px;
+                --mesa-gap: 14px;
+                --garcom-s: 32px;
+            }
+            @keyframes conc-waiter {
+                0%,  22%  { transform: translateX(18px);  }
+                25%, 47%  { transform: translateX(100px); }
+                50%, 72%  { transform: translateX(182px); }
+                75%, 97%  { transform: translateX(264px); }
+                100%      { transform: translateX(18px);  }
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="counter"><span class="cur" id="cur">01</span> / <span id="total">00</span></div>
+<div class="hint">← → espaço · esc = índice</div>
+
+<div class="nav-zone left"  onclick="go(-1)"></div>
+<div class="nav-zone right" onclick="go(1)"></div>
+
+<main class="deck" id="deck">
+
+    <!-- 1 CAPA -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; PALESTRA.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"threads &amp; gil"</span><span class="fn">)</span></span>
+        </div>
+        <h1>Threads, GIL<br>e <span class="accent">free-threaded</span><br>Python</h1>
+        <p class="lead">Do conceito ao código — com uma planilha de CEPs e um loop de primos.</p>
+    </section>
+
+    <!-- 2 O QUE É THREAD -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; CONCEITO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"thread"</span><span class="fn">)</span></span>
+        </div>
+        <h2>É a menor unidade<br>de <span class="accent">execução</span> de um programa.</h2>
+        <ul>
+            <li>Várias threads = várias <span class="green">linhas de trabalho</span> no mesmo programa.</li>
+            <li>Compartilham a mesma memória — comunicação é direta.</li>
+            <li>Ter várias <span class="pink">não</span> significa, por si só, rodar ao mesmo tempo.</li>
+        </ul>
+    </section>
+
+    <!-- 3 CONCORRÊNCIA -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; COMPORTAMENTO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"concorrência"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Lidar com várias coisas<br><span class="accent">ao mesmo tempo</span>.</h2>
+
+        <div class="scene scene-conc" aria-hidden="true">
+            <div class="mesas">
+                <div class="mesa m1"><span class="label">mesa 1</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa m2"><span class="label">mesa 2</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa m3"><span class="label">mesa 3</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa m4"><span class="label">mesa 4</span><div class="bar"><div class="fill"></div></div></div>
+            </div>
+            <div class="garcom">G</div>
+        </div>
+        <p class="scene-caption"><span class="pink">1 garçom</span> · 4 mesas — uma ação por vez</p>
+    </section>
+
+    <!-- 4 PARALELISMO -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; COMPORTAMENTO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"paralelismo"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Fazer várias coisas<br>no <span class="accent">mesmo milissegundo</span>.</h2>
+
+        <div class="scene scene-para" aria-hidden="true">
+            <div class="mesas">
+                <div class="mesa"><div class="garcom">G</div><span class="label">mesa 1</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa"><div class="garcom">G</div><span class="label">mesa 2</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa"><div class="garcom">G</div><span class="label">mesa 3</span><div class="bar"><div class="fill"></div></div></div>
+                <div class="mesa"><div class="garcom">G</div><span class="label">mesa 4</span><div class="bar"><div class="fill"></div></div></div>
+            </div>
+        </div>
+        <p class="scene-caption"><span class="pink">4 garçons</span> · 4 mesas — ao mesmo tempo</p>
+    </section>
+
+    <!-- 5 GIL -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; GIL.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"global interpreter lock"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Uma trava do Python:<br>só <span class="accent">1 thread</span> roda<br>código Python por vez.</h2>
+        <p class="muted">Mesmo com 16 núcleos, o Python usa 1 por vez — alternando entre as threads.</p>
+    </section>
+
+    <!-- 6 I/O vs CPU -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; DIAGNÓSTICO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"I/O vs CPU"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Onde o tempo <span class="accent">some?</span></h2>
+        <table>
+            <thead>
+                <tr><th></th><th>I/O-bound</th><th>CPU-bound</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tempo vai para</td>
+                    <td>esperar rede, disco, API</td>
+                    <td>calcular na máquina</td>
+                </tr>
+                <tr>
+                    <td>Exemplo</td>
+                    <td>consulta ViaCEP</td>
+                    <td>redimensionar fotos em lote</td>
+                </tr>
+                <tr>
+                    <td>Threads ajudam?</td>
+                    <td class="ok">sim — as esperas se juntam</td>
+                    <td class="no">não — o GIL trava</td>
+                </tr>
+                <tr>
+                    <td>Caminho usual</td>
+                    <td>ThreadPool / asyncio</td>
+                    <td>processos / nativo / free-threaded</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- 7 DEMO: O PROBLEMA -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; DEMO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"planilha + API"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Completar uma planilha<br>de <span class="accent">CEPs</span> com os endereços.</h2>
+        <ul>
+            <li>Cada linha é uma chamada <b>de verdade</b> na API do ViaCEP.</li>
+            <li>Uma linha não depende da outra.</li>
+            <li>Uma por vez: o tempo total é a <span class="pink">soma de todas as esperas</span>.</li>
+        </ul>
+    </section>
+
+    <!-- 8 CÓDIGO SEQUENCIAL -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; sequential.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"uma por vez"</span><span class="fn">)</span></span>
+        </div>
+        <h2>O laço <span class="accent">bloqueante</span>.</h2>
+<pre class="code"><span class="k">for</span> row <span class="k">in</span> rows:
+    <span class="n">looked_up</span> = <span class="b">lookup_cep</span>(row[<span class="s">"cep"</span>])  <span class="c"># bloqueia aqui</span>
+    results.append({
+        <span class="s">"id"</span>: row[<span class="s">"id"</span>],
+        <span class="s">"endereco"</span>: <span class="b">format_address</span>(looked_up),
+    })</pre>
+        <p class="muted" style="margin-top:2vh;">A próxima só começa quando a anterior termina.</p>
+    </section>
+
+    <!-- 9 CÓDIGO COM THREADS -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; threaded.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"ThreadPoolExecutor"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Várias chamadas <span class="accent">em voo</span>.</h2>
+<pre class="code"><span class="k">from</span> concurrent.futures <span class="k">import</span> <span class="n">ThreadPoolExecutor</span>
+
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span>(max_workers=<span class="b">10</span>) <span class="k">as</span> executor:
+    results = <span class="b">list</span>(executor.map(_lookup, rows))</pre>
+        <p class="muted" style="margin-top:2vh;">10 workers · 20 linhas · cada worker pega a próxima quando termina.</p>
+    </section>
+
+    <!-- 10 OVERLAP -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; TIMING.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"sobreposição"</span><span class="fn">)</span></span>
+        </div>
+        <h2>O tempo <span class="accent">encolhe</span>.</h2>
+<pre class="ascii">Sequencial   [--1--][--2--][--3--][--4--]
+
+4 threads    [--1--]
+             [--2--]
+             [--3--]
+             [--4--]</pre>
+        <p class="muted" style="margin-top:2vh;">Embaixo termina perto da chamada <span class="green">mais lenta do grupo</span> — não da soma.</p>
+    </section>
+
+    <!-- 11 POR QUE I/O ACELERA -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; GIL.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"por que ViaCEP acelera?"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Enquanto espera a internet,<br>a thread <span class="accent">solta o GIL</span>.</h2>
+        <ul>
+            <li>Outra thread entra e dispara a próxima chamada.</li>
+            <li>Várias chamadas acontecem <b>ao mesmo tempo</b>.</li>
+            <li>O GIL continua ali — ele só não trava quando a thread está esperando.</li>
+        </ul>
+    </section>
+
+    <!-- 12 CPU-BOUND CODE -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; cpu_bound.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"só CPU, nenhuma espera"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Trabalho que <span class="accent">ocupa a CPU</span>.</h2>
+<pre class="code"><span class="k">import</span> hashlib
+
+<span class="c"># verificar a integridade de muitos blocos</span>
+<span class="k">for</span> bloco <span class="k">in</span> blocos:
+    checksum = hashlib.sha256(bloco).hexdigest()</pre>
+        <p class="muted" style="margin-top:2vh;">Ninguém espera a internet nem o disco. A CPU trabalha o tempo inteiro.</p>
+    </section>
+
+    <!-- 13 CPU COM GIL: THREADS vs PROCESSOS -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; CONTRASTE.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"CPU com GIL"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Threads <span class="pink">empatam</span>.<br>Processos <span class="accent">ganham</span>.</h2>
+        <div class="two-col" style="margin-top:1vh;">
+            <div class="col">
+                <h3>ThreadPoolExecutor</h3>
+                <p>Mesmo Python, mesmo GIL. As threads só se alternam — o tempo fica igual ao sequencial.</p>
+            </div>
+            <div class="col">
+                <h3>ProcessPoolExecutor</h3>
+                <p>Cada processo tem seu próprio Python — e seu próprio GIL. Agora o ganho aparece.</p>
+            </div>
+        </div>
+        <div class="cmd" style="margin-top:3vh;"><span class="prompt">$</span> python src/main.py cpu --upto 800000 --workers 4</div>
+    </section>
+
+    <!-- 14 FREE-THREADED -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; PEP_703.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"free-threaded"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Python 3.13+<br><span class="accent">sem o GIL</span>.</h2>
+        <ul>
+            <li>Versão experimental oficial: <span class="green">python3.13t</span>.</li>
+            <li>Mesmo código, mesmas threads — agora usando vários núcleos ao mesmo tempo.</li>
+            <li>Ainda experimental: bibliotecas em C podem quebrar. Essa demo usa só a biblioteca padrão.</li>
+        </ul>
+<pre class="code" style="margin-top:2vh;"><span class="k">import</span> sys
+sys._is_gil_enabled()  <span class="c"># → False</span></pre>
+    </section>
+
+    <!-- 15 NÚMEROS -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; BENCHMARK.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"medido nesta máquina"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Mesmo trabalho pesado,<br>dois <span class="accent">Pythons</span>.</h2>
+        <table>
+            <thead>
+                <tr><th>Build</th><th>Sequencial</th><th>Threads</th><th>Processos</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>GIL ligado</td>
+                    <td>2.44s</td>
+                    <td class="no">2.60s · 0.94x</td>
+                    <td class="ok">1.32s · 1.85x</td>
+                </tr>
+                <tr>
+                    <td>Free-threaded</td>
+                    <td>3.17s</td>
+                    <td class="ok">1.11s · 2.87x</td>
+                    <td class="ok">1.62s · 1.95x</td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="muted" style="margin-top:2vh;">Com GIL: threads ≈ uma por vez. Sem GIL: threads <span class="green">aceleram de verdade</span>.</p>
+    </section>
+
+    <!-- 16 RESUMO -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; RESUMO.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"leve isso pra casa"</span><span class="fn">)</span></span>
+        </div>
+        <h2>Três ideias.</h2>
+        <ul>
+            <li><span class="green">I/O-bound</span> → threads já ajudam hoje.</li>
+            <li><span class="pink">CPU-bound</span> + GIL → threads não aceleram; use processos.</li>
+            <li><span class="green">Free-threaded</span> → threads no CPU finalmente ganham núcleos.</li>
+        </ul>
+    </section>
+
+    <!-- 17 OBRIGADA -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; FIM.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"obrigada!"</span><span class="fn">)</span></span>
+        </div>
+        <h1>Perguntas?</h1>
+        <p class="lead">github.com/… · ViaCEP + cpu · .venv vs .venv-ft</p>
+    </section>
+
+</main>
+
+<script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const progress = document.getElementById('progress');
+    const cur = document.getElementById('cur');
+    const total = document.getElementById('total');
+    total.textContent = String(slides.length).padStart(2, '0');
+
+    let i = 0;
+    function show(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, k) => s.classList.toggle('active', k === i));
+        cur.textContent = String(i + 1).padStart(2, '0');
+        progress.style.width = ((i + 1) / slides.length * 100) + '%';
+        location.hash = String(i + 1);
+    }
+    function go(delta) { show(i + delta); }
+
+    document.addEventListener('keydown', (e) => {
+        if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); go(1); }
+        else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(-1); }
+        else if (e.key === 'Home') { e.preventDefault(); show(0); }
+        else if (e.key === 'End')  { e.preventDefault(); show(slides.length - 1); }
+    });
+
+    // Deep-link: #3 abre o slide 3
+    const start = parseInt(location.hash.slice(1), 10);
+    show(Number.isFinite(start) && start >= 1 ? start - 1 : 0);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Sem dependências externas: a demo usa só a biblioteca padrão
+# (urllib + concurrent.futures) e a API pública do ViaCEP.
