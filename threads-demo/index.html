@@ -568,7 +568,23 @@
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> python src/main.py threads --limit 20 --workers 10</div>
     </section>
 
-    <!-- 7 POR QUE ACELEROU? -->
+    <!-- 7 O QUE É O GIL -->
+    <section class="slide">
+        <div class="tag">
+            <span class="top">&lt;/&gt; GIL.py</span>
+            <span class="bottom"><span class="fn">print(</span><span class="str">"o que é?"</span><span class="fn">)</span></span>
+        </div>
+        <h2>O que é o <span class="accent">GIL</span>?</h2>
+        <ul>
+            <li><span class="green">Global Interpreter Lock</span> — uma trava do <span class="pink">CPython</span>: num processo, só uma thread roda bytecode Python por vez.</li>
+            <li>Não é da linguagem — é da implementação. <span class="green">PyPy</span> e <span class="green">Jython</span> não têm.</li>
+            <li>Por que existe? Proteger as estruturas internas do interpretador de acesso concorrente — simplifica a vida de extensões em C.</li>
+            <li>Efeito prático: várias threads num processo <span class="pink">não viram</span> vários núcleos pra Python puro.</li>
+        </ul>
+        <p class="muted" style="margin-top:2vh;">No ViaCEP, mesmo com essa trava, acelerou. Como? É o próximo slide.</p>
+    </section>
+
+    <!-- 8 POR QUE ACELEROU? -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; GIL.py</span>
@@ -594,7 +610,7 @@
         <p class="scene-caption"><span class="pink">Concorrência</span> · 1 garçom reveza · quem anda junto é a rede</p>
     </section>
 
-    <!-- 8 A PEGADINHA -->
+    <!-- 9 A PEGADINHA -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; cpu_bound.py</span>
@@ -611,7 +627,7 @@
         <p class="muted" style="margin-top:2vh;">A CPU não para nunca — a thread <span class="pink">nunca devolve o bastão</span>. Mesmas threads, mesmo ThreadPool. Vão acelerar de novo, <span class="pink">certo?</span></p>
     </section>
 
-    <!-- 9 DECEPÇÃO + PROCESSOS -->
+    <!-- 10 DECEPÇÃO + PROCESSOS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; CONTRASTE.py</span>
@@ -643,7 +659,7 @@ Threads:      <span class="bad">2.94s  (1.05x)</span>
 Processos:    <span class="hl">1.25s  (2.47x)</span></pre>
     </section>
 
-    <!-- 10 FREE-THREADED -->
+    <!-- 11 FREE-THREADED -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; PEP_703.py</span>
@@ -664,7 +680,7 @@ Threads:      <span class="hl">0.88s  (3.34x)</span>
 Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
     </section>
 
-    <!-- 11 FREE-THREADED EM 2026 -->
+    <!-- 12 FREE-THREADED EM 2026 -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; UPDATES_2026.py</span>
@@ -679,7 +695,7 @@ Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
         </ul>
     </section>
 
-    <!-- 12 MEDIDO -->
+    <!-- 13 MEDIDO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; BENCHMARK.py</span>
@@ -726,7 +742,7 @@ Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
         <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho — e pode até atrapalhar (0,75x): o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade (3,34x).</p>
     </section>
 
-    <!-- 13 RESUMO -->
+    <!-- 14 RESUMO -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; RESUMO.py</span>
@@ -741,7 +757,7 @@ Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
         <p class="muted" style="margin-top:3vh;">Regra de bolso: <span class="pink">com o GIL</span>, thread não espalha em núcleos — processo sim. <span class="green">Sem o GIL</span>, thread também espalha.</p>
     </section>
 
-    <!-- 14 PERGUNTAS -->
+    <!-- 15 PERGUNTAS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; FIM.py</span>
@@ -751,7 +767,7 @@ Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
         <p class="lead">github.com/… · ViaCEP + cpu · .venv vs .venv-ft</p>
     </section>
 
-    <!-- 15 CRÉDITOS -->
+    <!-- 16 CRÉDITOS -->
     <section class="slide">
         <div class="tag">
             <span class="top">&lt;/&gt; OBRIGADA.py</span>

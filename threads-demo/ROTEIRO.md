@@ -75,15 +75,19 @@ python src/main.py threads --limit 20 --workers 10
 - `with ThreadPoolExecutor(max_workers=10) as executor:` — cria 10 threads operárias. O `with` garante que o pool espere todo mundo terminar antes de seguir.
 - `results = list(executor.map(_lookup, rows))` — entrega cada linha da planilha pra um worker processar. O `map` dispara as chamadas em paralelo e devolve os resultados na ordem do CSV (não na ordem em que chegam — o log mostra a ordem real de chegada).
 
-**Sobre a biblioteca:** a estrela aqui é a `concurrent.futures`, da biblioteca padrão — é ela que cria o pool de threads (e, no slide 9, o pool de processos). Nada de `pip install`: a HTTP é `urllib.request` (não a `requests`), o carimbo é `hashlib`, o lock do log é `threading`. Tudo stdlib. A `concurrent.futures` serve pra entregar um monte de tarefas independentes a um pool e esperar todo mundo terminar, sem você gerenciar as threads na mão.
+**Sobre a biblioteca:** a estrela aqui é a `concurrent.futures`, da biblioteca padrão — é ela que cria o pool de threads (e, no slide 10, o pool de processos). Nada de `pip install`: a HTTP é `urllib.request` (não a `requests`), o carimbo é `hashlib`, o lock do log é `threading`. Tudo stdlib. A `concurrent.futures` serve pra entregar um monte de tarefas independentes a um pool e esperar todo mundo terminar, sem você gerenciar as threads na mão.
 
-## 7 — Por que acelerou?
+## 7 — O que é o GIL?
+
+"Antes de explicar por que acelerou, deixa eu definir o que é o GIL. GIL é a sigla de Global Interpreter Lock — uma trava do CPython, a implementação de Python que todo mundo usa. A regra dela é simples: num processo, só uma thread roda bytecode Python por vez. Não é da linguagem Python, é do CPython — o PyPy e o Jython, outras implementações, não têm GIL. Por que ela existe? Pra proteger as estruturas internas do interpretador de acesso concorrente; isso simplifica a vida de quem escreve extensões em C. O efeito prático é o que interessa pra gente: várias threads num mesmo processo não viram vários núcleos pra Python puro. Mas no ViaCEP, mesmo com essa trava, acelerou. Como, se só uma roda por vez? É o próximo slide."
+
+## 8 — Por que acelerou?
 
 "Por que acelerou? Imagina o GIL como um bastão no centro da sala: só quem está com o bastão roda Python. A thread A pega o bastão, manda o HTTPS, e como vai ficar parada esperando a rede, devolve o bastão — não precisa dele enquanto espera. A thread B pega o bastão e dispara a chamada dela. As duas estão esperando a internet ao mesmo tempo, mas o bastão só passa por uma mão de cada vez. A rede fica ocupada junta. O Python segue revezando um núcleo só. A animação na tela é o garçom único revezando as quatro mesas. Continua sendo um garçom: o Python reveza um núcleo, e quem anda junto é a rede. O nome disso é concorrência. O GIL continua ali — ele só não segura a thread durante a espera. E é esse 'durante a espera' que o próximo slide tira."
 
 **Pergunta comum:** "Mas e se a planilha tiver MUITO dado, tipo um milhão de linhas — mais núcleos ajudam?" A resposta curta é: em geral não, e o motivo é o mesmo de sempre. No I/O o gargalo é a espera da rede, não a sua CPU. Mais núcleos ficam ociosos esperando do mesmo jeito. O que ajuda é mais threads — mais chamadas em voo ao mesmo tempo — até onde a API (ou a sua banda) aguenta. Depois disso, mais thread ou mais núcleo só gera erro de limite (429) ou enfileira. Mais núcleos só passam a ajudar se entrar trabalho de CPU no meio — tipo processar/transformar a resposta pesado, ou gravar em disco num ritmo que a um núcleo não dá conta de acompanhar. Só I/O puro, com resposta leve? Um núcleo basta; o limite é a rede, não você.
 
-## 8 — A pegadinha
+## 9 — A pegadinha
 
 "E se não houver espera nenhuma? No ViaCEP a thread ganhava tempo porque ficava parada esperando a rede. Tira a rede. A ação trocou: em vez de buscar um CEP, cada thread carimba um bloco. Carimbar é gerar o SHA-256 do conteúdo — um código curto que identifica o arquivo. Mesmo conteúdo gera o mesmo código; mudou 1 byte, o código muda. Na vida real, serve pra conferir se um arquivo chegou inteiro: compara o carimbo de quem enviou com o do que chegou. Aqui a gente não confere arquivo de verdade — o hash_blocks carimba centenas de milhares de bloquinhos de 1024 bytes. O tamanho é de propósito: o hashlib só solta o GIL a partir de 2048 bytes; abaixo disso, a trava fica presa. E aqui está o ponto: a CPU trabalha o tempo inteiro, sem nenhuma espera de rede. Então a thread nunca devolve o bastão. As mesmas threads, o mesmo ThreadPool, vão acelerar de novo, certo?"
 
@@ -99,7 +103,7 @@ python src/main.py threads --limit 20 --workers 10
 
 **Fala curta (se perguntarem na hora):** "O `hashlib` é C. Ele *pode* soltar o GIL enquanto hasha, mas só faz isso pra blocos grandes — 2048 bytes pra cima — porque soltar o GIL tem um custo que não compensa pra blob pequeno. A demo usa blocos de 1024, de propósito: abaixo do corte, o GIL fica preso dentro de cada `sha256()`. Aí a thread nunca solta o bastão, e o `ThreadPool` empata com o sequencial."
 
-## 9 — Decepção + processos
+## 10 — Decepção + processos
 
 "A decepção primeiro. Nesse carimbo, com o GIL ligado, o ThreadPoolExecutor é o um garçom. Várias threads, um processo, um GIL. Elas se revezam no mesmo núcleo. O tempo empata com o sequencial. A thread nunca devolve o bastão — a CPU não para nunca, então não tem espera pra devolver. O vilão revelado: o mesmo segredo que salvou o ViaCEP agora trava o carimbo. A solução é o ProcessPoolExecutor: os quatro garçons. Cada worker é outro processo, com seu Python e seu GIL. Quatro workers podem ocupar quatro núcleos ao mesmo tempo. Aí o ganho aparece. A animação na tela é o paralelismo: 4 garçons, 4 núcleos — só com processo. Um processo é outro Python, outro GIL, outro núcleo possível."
 
@@ -113,7 +117,7 @@ python src/main.py threads --limit 20 --workers 10
 
 **Print no slide:** o slide leva um inset com a saída de uma rodada boa — `Sequencial 3.08s · Threads 2.94s (1.05x) · Processos 1.25s (2.47x)`. Se o ao vivo variar ou a máquina travar na projeção, o inset segura o argumento: threads em 1 núcleo (1.05x, rosa), processos na frente (2.47x, verde).
 
-## 10 — Sem o GIL
+## 11 — Sem o GIL
 
 "E se tirassem a trava? O slide anterior precisou de processo pra ganhar núcleo, driblando o GIL por fora. E se a gente pudesse tirar o GIL por dentro? Desde o 3.13 existe um build sem a trava: python3.13t, free-threaded. No 3.13 era experimental; a partir do 3.14 é oficialmente suportado — mas ainda opcional, não é o default. É o mesmo ThreadPoolExecutor e o mesmo hash_blocks. Sem o GIL, aquelas threads deixam de ser o garçom único e passam a ocupar vários núcleos. Bibliotecas em C ainda podem ter atrito nesse build; essa demo usa só a biblioteca padrão. A checagem é sys._is_gil_enabled(), e aqui ela devolve False."
 
@@ -128,15 +132,15 @@ python src/main.py threads --limit 20 --workers 10
 .\.venv-ft\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4
 ```
 
-"Mesmo comando do slide anterior. Desta vez as threads aceleram. A animação dos 4 garçons, que no slide 9 só acontecia com processo, agora acontece com thread também."
+"Mesmo comando do slide anterior. Desta vez as threads aceleram. A animação dos 4 garçons, que no slide 10 só acontecia com processo, agora acontece com thread também."
 
-**Print no slide:** inset com a saída — `Sequencial 2.95s · Threads 0.88s (3.34x) · Processos 1.24s (2.38x)`. O punchline: sem o GIL, as threads caem pra 0.88s (3.34x, verde) — o mesmo `ThreadPool` que no slide 9 empatava, agora acelera. Backup se o ao vivo variar.
+**Print no slide:** inset com a saída — `Sequencial 2.95s · Threads 0.88s (3.34x) · Processos 1.24s (2.38x)`. O punchline: sem o GIL, as threads caem pra 0.88s (3.34x, verde) — o mesmo `ThreadPool` que no slide 10 empatava, agora acelera. Backup se o ao vivo variar.
 
-## 11 — Free-threaded em 2026
+## 12 — Free-threaded em 2026
 
 "Isso não é futuro distante, é agora. A linha do tempo: 3.13, outubro de 2024, o build sem GIL entra, ainda experimental — é a fase I do PEP 703. 3.14, outubro de 2025, deixa de ser experimental: o PEP 779 remove o rótulo e o build vira oficialmente suportado, fase II. Ainda opcional, não é o default. A performance também melhorou: o specializing interpreter foi ligado no free-threaded e a penalidade no single-threaded caiu pra uns 5 a 10 por cento. 3.15, outubro de 2026, saiu agora: traz a Stable ABI abi3t pra free-threaded, o que facilita pacotes de extensão C. No macOS, os binários oficiais já instalam free-threading por padrão. A fase III, virar o default, ainda é indecidida — depende do ecossistema de extensões C pegar o abi3t. A mensagem pra casa: não é mais experimental desde o 3.14, mas ainda é opcional."
 
-## 12 — Medido
+## 13 — Medido
 
 "Os dois exemplos, dois Pythons — agora na mesma tabela. As linhas de cima são o CEP, as de baixo são o carimbo. No CEP, o free-threaded não dá ganho — e aqui tem um detalhe que surpreende: ele pode até atrapalhar. Com o GIL ligado, o sequencial faz 26,33s e as threads caem pra 15,50s — speedup de 1,70x, as threads ajudam. Sem o GIL, o sequencial fez 14,18s e as threads subiram pra 18,98s — speedup de 0,75x, ou seja, mais lento que o sequencial. Por que isso? Remover o GIL não traz benefício pra tarefa de I/O: o Python padrão já libera o GIL naturalmente durante a espera da rede. Sem o GIL, as threads passam a rodar de verdade em paralelo — mas o gargalo é a rede, não a CPU, então esse paralelismo a mais só gera overhead, sem ganho. E reparem nos tempos absolutos do sequencial: 26,33s num build, 14,18s no outro. Essa oscilação não é do Python — é da rede e da API, que respondem diferente a cada execução. E é justamente isso que confirma a tese: o gargalo é a conectividade, não o processamento.
 
@@ -151,17 +155,17 @@ python src/main.py comparar_cep --limit 200 --workers 2
 
 Cada build imprime `Tempo sequencial`, `Tempo com Threads` e o `Speedup`. Os tempos absolutos oscilam entre execuções (rede/API), mas o sinal é o speedup dentro de cada build: com GIL as threads ajudam (1,70x), sem GIL elas não ajudam — e podem atrapalhar (0,75x). O ponto didático: free-threaded não ajuda no I/O, e a oscilação dos tempos é a prova de que o gargalo é a rede.
 
-**As linhas do carimbo** já estão preenchidas como referência; pra medir na hora, é o `cpu` nos dois venvs (slides 9 e 10).
+**As linhas do carimbo** já estão preenchidas como referência; pra medir na hora, é o `cpu` nos dois venvs (slides 10 e 11).
 
-## 13 — Três ideias
+## 14 — Três ideias
 
 "Três ideias pra levar pra casa. Primeira: I/O-bound, a planilha — threads já ajudam hoje, porque a espera solta o GIL. É o um garçom, com a rede andando junta. Segunda: CPU-bound com GIL, o carimbo — o ThreadPool fica num núcleo só; quem usa os outros núcleos é o processo, um garçom por núcleo. Terceira: free-threaded — o mesmo ThreadPool finalmente ocupa vários núcleos. E a regra de bolso, que responde a pergunta mais comum: 'então minhas threads rodam em núcleos diferentes?'. Com o GIL, não: thread não espalha em núcleos, quem espalha é processo. Sem o GIL, sim, a thread também espalha. E cuidado com uma pegadinha: no I/O a thread acelera sem espalhar em núcleo nenhum — ali o ganho é a espera de rede se sobrepondo, não núcleo extra."
 
-## 14 — Perguntas
+## 15 — Perguntas
 
 "O código está no repositório. A parte de CEP é o ViaCEP. A parte de CPU é o comando cpu. A comparação é a pasta .venv contra a .venv-ft. Perguntas?"
 
-## 15 — Créditos
+## 16 — Créditos
 
 "Créditos: a arte é do [nome do seu amigo]. A demo e o código são meus. A API é o ViaCEP. Obrigada!"
 
@@ -183,4 +187,4 @@ python src/main.py uma
 
 ## Se a rede falhar
 
-O `cpu` não depende do ViaCEP. Segue do slide 8. A tabela do slide 12 fecha o argumento sem chamar a API.
+O `cpu` não depende do ViaCEP. Segue do slide 9. A tabela do slide 13 fecha o argumento sem chamar a API.
