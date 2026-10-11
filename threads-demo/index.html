@@ -182,6 +182,22 @@
         }
         .cmd .prompt { color: var(--green); }
 
+        /* ----- Terminal output (inset compacto) ----- */
+        .out {
+            background: rgba(11, 13, 26, 0.85);
+            border-left: 4px solid var(--green);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.8rem, 1.15vw, 0.95rem);
+            line-height: 1.5;
+            color: #e6edf3;
+            margin-top: 1vh;
+            white-space: pre;
+        }
+        .out .hl { color: var(--green); font-weight: 700; }
+        .out .bad { color: var(--pink); font-weight: 700; }
+
         /* ----- Layout helpers ----- */
         .two-col {
             display: grid;
@@ -622,6 +638,9 @@
         </div>
         <p class="scene-caption"><span class="pink">Paralelismo</span> · 4 garçons, 4 núcleos · só com processo</p>
         <div class="cmd" style="margin-top:1.5vh;"><span class="prompt">$</span> .\.venv\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
+        <pre class="out">Sequencial:  3.08s
+Threads:      <span class="bad">2.94s  (1.05x)</span>
+Processos:    <span class="hl">1.25s  (2.47x)</span></pre>
     </section>
 
     <!-- 10 FREE-THREADED -->
@@ -640,6 +659,9 @@
 <pre class="code" style="margin-top:2vh;"><span class="k">import</span> sys
 sys._is_gil_enabled()  <span class="c"># → False</span></pre>
         <div class="cmd" style="margin-top:2vh;"><span class="prompt">$</span> .\.venv-ft\Scripts\python.exe src\main.py cpu --upto 800000 --workers 4</div>
+        <pre class="out">Sequencial:  2.95s
+Threads:      <span class="hl">0.88s  (3.34x)</span>
+Processos:    <span class="hl">1.24s  (2.38x)</span></pre>
     </section>
 
     <!-- 11 FREE-THREADED EM 2026 -->
@@ -684,24 +706,24 @@ sys._is_gil_enabled()  <span class="c"># → False</span></pre>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>sequencial</td>
-                    <td>2.87s</td>
-                    <td>2.88s</td>
+                    <td>3.08s</td>
+                    <td>2.95s</td>
                 </tr>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>threads</td>
-                    <td class="no">2.75s · 1.05x</td>
-                    <td class="ok">0.80s · 3.62x</td>
+                    <td class="no">2.94s · 1.05x</td>
+                    <td class="ok">0.88s · 3.34x</td>
                 </tr>
                 <tr>
                     <td>Carimbo (CPU)</td>
                     <td>processos</td>
-                    <td class="ok">1.12s · 2.57x</td>
-                    <td class="ok">1.07s · 2.71x</td>
+                    <td class="ok">1.25s · 2.47x</td>
+                    <td class="ok">1.24s · 2.38x</td>
                 </tr>
             </tbody>
         </table>
-        <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho — e pode até atrapalhar (0,75x): o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade (3,62x).</p>
+        <p class="muted" style="margin-top:2vh;">No <span class="green">CEP</span>, free-threaded não dá ganho — e pode até atrapalhar (0,75x): o gargalo é a rede, não a CPU. No <span class="pink">carimbo</span>, free-threaded faz as threads acelerarem de verdade (3,34x).</p>
     </section>
 
     <!-- 13 RESUMO -->

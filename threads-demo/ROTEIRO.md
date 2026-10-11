@@ -95,6 +95,10 @@ python src/main.py threads --limit 20 --workers 10
 - `payload = i.to_bytes(8, "big") * 128` — inventa 1024 bytes a partir do índice `i` (8 bytes repetidos 128 vezes). É o "conteúdo" do bloco — não veio de arquivo, veio do contador.
 - `total += hashlib.sha256(payload).digest()[0]` — carimba o bloco (SHA-256), pega o 1º byte do carimbo e soma. A CPU faz isso o tempo inteiro — não tem espera, então o GIL nunca solta.
 
+**Por que 2048 (se alguém perguntar):** o `hashlib` (o `sha256`, via OpenSSL) é código C. Enquanto roda C, o Python *poderia* soltar o GIL e deixar outra thread trabalhar — e é isso que ele faz em operações demoradas. Mas soltar e repôr o GIL tem um custo (lock + possível troca de contexto). Pra um bloquinho minúsculo, o hash termina em microssegundos, então soltar o GIL custaria mais caro que o próprio hash. O CPython só solta quando o bloco é grande o bastante; o corte escolhido é `HASHLIB_GIL_MINSIZE = 2048` bytes, hardcoded em `Modules/hashlib.h` (o próprio fonte tem um `TODO` dizendo que deveria ser configurável por plataforma — não é um número mágico calculado, é uma heurística). A demo usa 1024 de propósito: abaixo do corte, o GIL fica preso dentro de cada `sha256()`. Se o bloco fosse 4096, o `hashlib` começaria a soltar o GIL e as threads ganhariam algum speedup **mesmo com o GIL ligado** — estragaria o ponto da demo.
+
+**Fala curta (se perguntarem na hora):** "O `hashlib` é C. Ele *pode* soltar o GIL enquanto hasha, mas só faz isso pra blocos grandes — 2048 bytes pra cima — porque soltar o GIL tem um custo que não compensa pra blob pequeno. A demo usa blocos de 1024, de propósito: abaixo do corte, o GIL fica preso dentro de cada `sha256()`. Aí a thread nunca solta o bastão, e o `ThreadPool` empata com o sequencial."
+
 ## 9 — Decepção + processos
 
 "A decepção primeiro. Nesse carimbo, com o GIL ligado, o ThreadPoolExecutor é o um garçom. Várias threads, um processo, um GIL. Elas se revezam no mesmo núcleo. O tempo empata com o sequencial. A thread nunca devolve o bastão — a CPU não para nunca, então não tem espera pra devolver. O vilão revelado: o mesmo segredo que salvou o ViaCEP agora trava o carimbo. A solução é o ProcessPoolExecutor: os quatro garçons. Cada worker é outro processo, com seu Python e seu GIL. Quatro workers podem ocupar quatro núcleos ao mesmo tempo. Aí o ganho aparece. A animação na tela é o paralelismo: 4 garçons, 4 núcleos — só com processo. Um processo é outro Python, outro GIL, outro núcleo possível."
@@ -106,6 +110,8 @@ python src/main.py threads --limit 20 --workers 10
 ```
 
 "A primeira linha diz que o GIL está ligado. A leitura no final: threads perto de 1x, processos na frente. A decepção e a solução, no mesmo comando."
+
+**Print no slide:** o slide leva um inset com a saída de uma rodada boa — `Sequencial 3.08s · Threads 2.94s (1.05x) · Processos 1.25s (2.47x)`. Se o ao vivo variar ou a máquina travar na projeção, o inset segura o argumento: threads em 1 núcleo (1.05x, rosa), processos na frente (2.47x, verde).
 
 ## 10 — Sem o GIL
 
@@ -124,6 +130,8 @@ python src/main.py threads --limit 20 --workers 10
 
 "Mesmo comando do slide anterior. Desta vez as threads aceleram. A animação dos 4 garçons, que no slide 9 só acontecia com processo, agora acontece com thread também."
 
+**Print no slide:** inset com a saída — `Sequencial 2.95s · Threads 0.88s (3.34x) · Processos 1.24s (2.38x)`. O punchline: sem o GIL, as threads caem pra 0.88s (3.34x, verde) — o mesmo `ThreadPool` que no slide 9 empatava, agora acelera. Backup se o ao vivo variar.
+
 ## 11 — Free-threaded em 2026
 
 "Isso não é futuro distante, é agora. A linha do tempo: 3.13, outubro de 2024, o build sem GIL entra, ainda experimental — é a fase I do PEP 703. 3.14, outubro de 2025, deixa de ser experimental: o PEP 779 remove o rótulo e o build vira oficialmente suportado, fase II. Ainda opcional, não é o default. A performance também melhorou: o specializing interpreter foi ligado no free-threaded e a penalidade no single-threaded caiu pra uns 5 a 10 por cento. 3.15, outubro de 2026, saiu agora: traz a Stable ABI abi3t pra free-threaded, o que facilita pacotes de extensão C. No macOS, os binários oficiais já instalam free-threading por padrão. A fase III, virar o default, ainda é indecidida — depende do ecossistema de extensões C pegar o abi3t. A mensagem pra casa: não é mais experimental desde o 3.14, mas ainda é opcional."
@@ -132,7 +140,7 @@ python src/main.py threads --limit 20 --workers 10
 
 "Os dois exemplos, dois Pythons — agora na mesma tabela. As linhas de cima são o CEP, as de baixo são o carimbo. No CEP, o free-threaded não dá ganho — e aqui tem um detalhe que surpreende: ele pode até atrapalhar. Com o GIL ligado, o sequencial faz 26,33s e as threads caem pra 15,50s — speedup de 1,70x, as threads ajudam. Sem o GIL, o sequencial fez 14,18s e as threads subiram pra 18,98s — speedup de 0,75x, ou seja, mais lento que o sequencial. Por que isso? Remover o GIL não traz benefício pra tarefa de I/O: o Python padrão já libera o GIL naturalmente durante a espera da rede. Sem o GIL, as threads passam a rodar de verdade em paralelo — mas o gargalo é a rede, não a CPU, então esse paralelismo a mais só gera overhead, sem ganho. E reparem nos tempos absolutos do sequencial: 26,33s num build, 14,18s no outro. Essa oscilação não é do Python — é da rede e da API, que respondem diferente a cada execução. E é justamente isso que confirma a tese: o gargalo é a conectividade, não o processamento.
 
-No carimbo, a história é outra. Com o GIL ligado: sequencial 2,87s; threads 2,75s, 1,05x — um núcleo só, as threads mal mexem; processos 1,12s, 2,57x. Sem o GIL: sequencial 2,88s — esse build tem um custo pequeno; as threads caem pra 0,80s, 3,62x; processos 1,07s, 2,71x. Com GIL, threads num núcleo só. Sem GIL, o ThreadPool ocupa vários núcleos. A tabela fecha o arco: o mesmo 'às vezes' da capa, agora explicado nos dois exemplos."
+No carimbo, a história é outra. Com o GIL ligado: sequencial 3,08s; threads 2,94s, 1,05x — um núcleo só, as threads mal mexem; processos 1,25s, 2,47x. Sem o GIL: sequencial 2,95s — esse build tem um custo pequeno; as threads caem pra 0,88s, 3,34x; processos 1,24s, 2,38x. Com GIL, threads num núcleo só. Sem GIL, o ThreadPool ocupa vários núcleos. A tabela fecha o arco: o mesmo 'às vezes' da capa, agora explicado nos dois exemplos."
 
 **Pra reproduzir as linhas do CEP (rode e anote):**
 
